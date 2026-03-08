@@ -169,7 +169,22 @@ main() {
     info "Creating $QSO_GRAPH_HOME..."
     mkdir -p "$BIN_DIR" "$ETC_DIR" "$LOG_DIR"
 
-    # Step 3: Create venv
+    # Step 3: Check venv module is available (Debian/Ubuntu strip it out)
+    if ! "$PYTHON" -m venv --help >/dev/null 2>&1; then
+        local py_minor
+        py_minor=$("$PYTHON" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+        error "Python venv module is not installed."
+        echo ""
+        echo "On Ubuntu/Debian, install it with:"
+        echo "  sudo apt install python${py_minor}-venv"
+        echo ""
+        echo "Then re-run this installer."
+        # Clean up empty dirs we just created
+        rmdir "$LOG_DIR" "$ETC_DIR" "$BIN_DIR" "$QSO_GRAPH_HOME" 2>/dev/null || true
+        exit 1
+    fi
+
+    # Step 3b: Create venv
     info "Creating Python virtual environment..."
     "$PYTHON" -m venv "$VENV_DIR"
 
