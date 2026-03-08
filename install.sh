@@ -112,7 +112,16 @@ add_to_path() {
     echo -e "${BOLD}Add ~/.qso-graph/bin to PATH?${NC}"
     echo "This appends one line to $shell_rc"
     echo ""
-    read -rp "Add to PATH? [Y/n]: " answer
+
+    # read from /dev/tty so it works when piped (curl | bash)
+    local answer="y"
+    if [ -t 0 ]; then
+        read -rp "Add to PATH? [Y/n]: " answer < /dev/stdin
+    elif [ -e /dev/tty ]; then
+        read -rp "Add to PATH? [Y/n]: " answer < /dev/tty
+    else
+        info "No terminal detected — adding PATH automatically."
+    fi
     answer="${answer:-y}"
 
     if [[ "$answer" =~ ^[Yy] ]]; then
