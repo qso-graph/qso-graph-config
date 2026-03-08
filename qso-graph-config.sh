@@ -77,7 +77,7 @@ BASE_PKGS="adif-mcp solar-mcp pota-mcp sota-mcp iota-mcp wspr-mcp"
 AUTH_PKGS="qso-graph-auth qrz-mcp eqsl-mcp lotw-mcp hamqth-mcp"
 IONIS_PKGS="ionis-mcp"
 
-ENTRY_POINTS="qso-graph-config adif-mcp solar-mcp pota-mcp sota-mcp iota-mcp wspr-mcp qso-auth qrz-mcp eqsl-mcp lotw-mcp hamqth-mcp ionis-mcp ionis-download"
+ENTRY_POINTS="adif-mcp solar-mcp pota-mcp sota-mcp iota-mcp wspr-mcp qso-auth qrz-mcp eqsl-mcp lotw-mcp hamqth-mcp ionis-mcp ionis-download"
 
 # ─── Terminal cleanup ────────────────────────────────────────────────────────
 
