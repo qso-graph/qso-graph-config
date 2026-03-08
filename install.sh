@@ -180,15 +180,31 @@ main() {
     info "Upgrading pip..."
     "$VENV_DIR/bin/pip" install --quiet --upgrade pip 2>&1 | tail -1 || true
 
-    # Step 5: Install qso-graph-config
+    # Step 5: Install qso-graph-config (meta-package — pulls in base MCP servers)
     info "Installing qso-graph-config from PyPI..."
     "$VENV_DIR/bin/pip" install --quiet qso-graph-config 2>&1
 
-    # Step 6: Create wrapper scripts
+    # Step 6: Deploy manager script and create wrappers
     info "Creating wrapper scripts in $BIN_DIR..."
     local count=0
-    for entry_point in "$VENV_DIR/bin/"*-mcp "$VENV_DIR/bin/qso-graph-config" \
-                       "$VENV_DIR/bin/qso-auth" "$VENV_DIR/bin/ionis-download"; do
+
+    # Deploy the bash manager script
+    local manager_url="https://raw.githubusercontent.com/qso-graph/qso-graph-config/main/qso-graph-config.sh"
+    local manager_path="$BIN_DIR/qso-graph-config"
+    if command -v curl >/dev/null 2>&1; then
+        curl -sL "$manager_url" -o "$manager_path"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q "$manager_url" -O "$manager_path"
+    else
+        error "Neither curl nor wget found — cannot download manager script."
+        exit 1
+    fi
+    chmod 755 "$manager_path"
+    count=$((count + 1))
+
+    # Create wrappers for all MCP server entry points
+    for entry_point in "$VENV_DIR/bin/"*-mcp "$VENV_DIR/bin/qso-auth" \
+                       "$VENV_DIR/bin/ionis-download"; do
         [ -f "$entry_point" ] || continue
         local name
         name=$(basename "$entry_point")
@@ -200,7 +216,7 @@ WRAPPER
         chmod 755 "$wrapper"
         count=$((count + 1))
     done
-    info "Created $count wrapper scripts."
+    info "Created $count scripts ($((count - 1)) wrappers + manager)."
 
     # Step 7: Save initial state
     cat > "$ETC_DIR/state.json" <<STATE

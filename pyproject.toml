@@ -47,9 +47,6 @@ full = [
     "qso-graph-config[ionis]",
 ]
 
-[project.scripts]
-qso-graph-config = "qso_graph_config.cli:main"
-
 [project.urls]
 Homepage = "https://qso-graph.io"
 Documentation = "https://qso-graph.io"
