@@ -298,11 +298,76 @@ do_credentials() {
                 "$qso_auth" creds doctor
                 read -rp "Press Enter to continue..."
                 ;;
-            *)
+            eqsl|lotw|hamqth)
+                # Username + password providers
                 local persona
                 persona=$("$qso_auth" persona list 2>/dev/null | head -1 | awk '{print $1}')
-                [ -z "$persona" ] && persona="default"
-                "$qso_auth" creds set "$persona" "$selection"
+                if [ -z "$persona" ]; then
+                    dialog --backtitle "$BACKTITLE" \
+                        --title " No Persona" \
+                        --msgbox "Create a persona first." 7 40
+                    continue
+                fi
+
+                dialog --backtitle "$BACKTITLE" \
+                    --title " ${selection^^} — Username" \
+                    --inputbox "Enter your ${selection} username:" 8 50 \
+                    2> "$TMP/selection"
+                rc=$?
+                [ $rc -ne 0 ] && continue
+                local cred_user
+                cred_user=$(cat "$TMP/selection")
+                [ -z "$cred_user" ] && continue
+
+                dialog --backtitle "$BACKTITLE" \
+                    --title " ${selection^^} — Password" \
+                    --insecure --passwordbox "Enter your ${selection} password:" 8 50 \
+                    2> "$TMP/selection"
+                rc=$?
+                [ $rc -ne 0 ] && continue
+                local cred_pass
+                cred_pass=$(cat "$TMP/selection")
+                [ -z "$cred_pass" ] && continue
+
+                clear
+                "$qso_auth" creds set "$persona" "$selection" \
+                    --username "$cred_user" --password "$cred_pass"
+                read -rp "Press Enter to continue..."
+                ;;
+            qrz)
+                # Username + API key provider
+                local persona
+                persona=$("$qso_auth" persona list 2>/dev/null | head -1 | awk '{print $1}')
+                if [ -z "$persona" ]; then
+                    dialog --backtitle "$BACKTITLE" \
+                        --title " No Persona" \
+                        --msgbox "Create a persona first." 7 40
+                    continue
+                fi
+
+                dialog --backtitle "$BACKTITLE" \
+                    --title " QRZ — Username" \
+                    --inputbox "Enter your QRZ.com username:" 8 50 \
+                    2> "$TMP/selection"
+                rc=$?
+                [ $rc -ne 0 ] && continue
+                local cred_user
+                cred_user=$(cat "$TMP/selection")
+                [ -z "$cred_user" ] && continue
+
+                dialog --backtitle "$BACKTITLE" \
+                    --title " QRZ — API Key" \
+                    --insecure --passwordbox "Enter your QRZ.com API key:" 8 50 \
+                    2> "$TMP/selection"
+                rc=$?
+                [ $rc -ne 0 ] && continue
+                local cred_key
+                cred_key=$(cat "$TMP/selection")
+                [ -z "$cred_key" ] && continue
+
+                clear
+                "$qso_auth" creds set "$persona" qrz \
+                    --username "$cred_user" --api-key "$cred_key"
                 read -rp "Press Enter to continue..."
                 ;;
         esac
