@@ -25,7 +25,7 @@ BACKTITLE="QSO-Graph Config v${VERSION}"
 # ─── Dialog theme ────────────────────────────────────────────────────────────
 
 make_dialogrc() {
-    cat > "$TMP/.dialogrc" <<'EOF_DIALOGRC'
+    cat > "$ETC_DIR/.dialogrc" <<'EOF_DIALOGRC'
 aspect = 0
 separate_widget = ""
 tab_len = 0
@@ -68,7 +68,7 @@ form_item_readonly_color = (CYAN,WHITE,ON)
 gauge_color = (BLUE,WHITE,ON)
 EOF_DIALOGRC
 
-    export DIALOGRC="$TMP/.dialogrc"
+    export DIALOGRC="$ETC_DIR/.dialogrc"
 }
 
 # ─── Package definitions ────────────────────────────────────────────────────
@@ -82,7 +82,7 @@ ENTRY_POINTS="qso-graph-config adif-mcp solar-mcp pota-mcp sota-mcp iota-mcp wsp
 # ─── Terminal cleanup ────────────────────────────────────────────────────────
 
 clean_exit() {
-    rm -f "$TMP"/* "$TMP"/.dialogrc
+    rm -f "$TMP"/*
     stty sane 2>/dev/null || true
     printf '\033[?25h'
     clear
@@ -92,7 +92,7 @@ clean_exit() {
 }
 
 sig_catch_cleanup() {
-    rm -f "$TMP"/* "$TMP"/.dialogrc
+    rm -f "$TMP"/*
     stty sane 2>/dev/null || true
     printf '\033[?25h'
     clear
