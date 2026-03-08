@@ -3,7 +3,7 @@
 # qso-graph-config — Manager for QSO-Graph ham radio MCP servers.
 #
 # Pure bash + dialog/whiptail TUI.
-# Falls back to numbered prompts when neither is available.
+# Falls back to numbered prompts with --no-tui or when neither is available.
 #
 # All state lives under ~/.qso-graph/:
 #   venv/     Python virtual environment (servers installed here)
@@ -20,9 +20,6 @@ VERSION="0.1.2"
 
 : ${DIALOG_OK=0}
 : ${DIALOG_CANCEL=1}
-: ${DIALOG_HELP=2}
-: ${DIALOG_EXTRA=3}
-: ${DIALOG_ITEM_HELP=4}
 : ${DIALOG_ESC=255}
 
 # ─── Paths ───────────────────────────────────────────────────────────────────
@@ -48,12 +45,18 @@ ENTRY_POINTS="qso-graph-config adif-mcp solar-mcp pota-mcp sota-mcp iota-mcp wsp
 # ─── Dialog detection ───────────────────────────────────────────────────────
 
 MSGCLIENT=""
+USE_TUI=0
 
 detect_dialog() {
     if command -v dialog >/dev/null 2>&1; then
         MSGCLIENT="dialog"
     elif command -v whiptail >/dev/null 2>&1; then
         MSGCLIENT="whiptail"
+    fi
+
+    # Verify it actually works on this terminal
+    if [ -n "$MSGCLIENT" ]; then
+        $MSGCLIENT --version >/dev/null 2>&1 && USE_TUI=1
     fi
 }
 
@@ -156,6 +159,106 @@ update_state() {
 STATE
 }
 
+# ─── Plain text menu (fallback) ─────────────────────────────────────────────
+
+# Returns selection in PLAIN_RESULT, or empty string on cancel.
+PLAIN_RESULT=""
+
+plain_menu() {
+    local title="$1"
+    shift
+    # remaining args are tag/desc pairs
+
+    PLAIN_RESULT=""
+    echo ""
+    echo "=== $title ==="
+    echo ""
+    local i=1
+    local tags=()
+    while [ $# -ge 2 ]; do
+        printf "  %d. %s\n" "$i" "$2"
+        tags+=("$1")
+        shift 2
+        i=$((i + 1))
+    done
+    echo "  0. Cancel / Exit"
+    echo ""
+    read -rp "Enter choice [0-$((i - 1))]: " pick
+    if [ -z "$pick" ] || [ "$pick" = "0" ]; then
+        return 1
+    fi
+    local idx=$((pick - 1))
+    if [ "$idx" -ge 0 ] && [ "$idx" -lt "${#tags[@]}" ]; then
+        PLAIN_RESULT="${tags[$idx]}"
+        return 0
+    fi
+    return 1
+}
+
+plain_checklist() {
+    local title="$1"
+    shift
+
+    PLAIN_RESULT=""
+    echo ""
+    echo "=== $title ==="
+    echo ""
+    local i=1
+    local tags=()
+    local defaults=()
+    while [ $# -ge 3 ]; do
+        local mark=" "
+        [ "$3" = "ON" ] && mark="X"
+        printf "  %d. [%s] %s\n" "$i" "$mark" "$2"
+        tags+=("$1")
+        defaults+=("$3")
+        shift 3
+        i=$((i + 1))
+    done
+    echo ""
+    echo "Enter numbers to toggle (e.g. '2 3'), or Enter to accept defaults."
+    read -rp "Toggle: " picks
+
+    local selected=()
+    for j in $(seq 0 $((${#tags[@]} - 1))); do
+        [ "${defaults[$j]}" = "ON" ] && selected+=("${tags[$j]}")
+    done
+    for p in $picks; do
+        local idx=$((p - 1))
+        if [ "$idx" -ge 0 ] && [ "$idx" -lt "${#tags[@]}" ]; then
+            local tag="${tags[$idx]}"
+            local found=0
+            local new_selected=()
+            for s in "${selected[@]}"; do
+                if [ "$s" = "$tag" ]; then found=1; else new_selected+=("$s"); fi
+            done
+            [ "$found" -eq 0 ] && new_selected+=("$tag")
+            selected=("${new_selected[@]}")
+        fi
+    done
+    PLAIN_RESULT="${selected[*]}"
+}
+
+plain_yesno() {
+    local title="$1" text="$2"
+    echo ""
+    echo "=== $title ==="
+    echo "$text"
+    read -rp "[y/N]: " answer
+    case "$answer" in
+        [yY]|[yY][eE][sS]) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+plain_msgbox() {
+    local title="$1" text="$2"
+    echo ""
+    echo "=== $title ==="
+    echo -e "$text"
+    read -rp "Press Enter to continue..."
+}
+
 # ─── Menu actions ────────────────────────────────────────────────────────────
 
 do_install() {
@@ -164,22 +267,31 @@ do_install() {
     has_auth && auth_default="ON"
     has_ionis && ionis_default="ON"
 
-    exec 3>&1
-    selection=$($MSGCLIENT \
-        --backtitle "$BACKTITLE" \
-        --title " Install Components" \
-        --checklist "Select components to install. Base is always included." \
-        14 65 3 \
-        "base"  "Base — 6 public servers (38 tools)"              "ON" \
-        "auth"  "Auth — 4 logbook servers + qso-auth (22 tools)"  "$auth_default" \
-        "ionis" "ionis-mcp — HF propagation analytics (11 tools)" "$ionis_default" \
-        2>&1 1>&3)
-    exit_status=$?
-    exec 3>&-
+    local selection=""
 
-    [ "$exit_status" -ne "$DIALOG_OK" ] && return
+    if [ "$USE_TUI" -eq 1 ]; then
+        exec 3>&1
+        selection=$($MSGCLIENT \
+            --backtitle "$BACKTITLE" \
+            --title " Install Components" \
+            --checklist "Select components to install. Base is always included." \
+            14 65 3 \
+            "base"  "Base — 6 public servers (38 tools)"              "ON" \
+            "auth"  "Auth — 4 logbook servers + qso-auth (22 tools)"  "$auth_default" \
+            "ionis" "ionis-mcp — HF propagation analytics (11 tools)" "$ionis_default" \
+            2>&1 1>&3)
+        exit_status=$?
+        exec 3>&-
+        [ "$exit_status" -ne "$DIALOG_OK" ] && return
+    else
+        plain_checklist "Install Components" \
+            "base"  "Base — 6 public servers (38 tools)"              "ON" \
+            "auth"  "Auth — 4 logbook servers + qso-auth (22 tools)"  "$auth_default" \
+            "ionis" "ionis-mcp — HF propagation analytics (11 tools)" "$ionis_default"
+        selection="$PLAIN_RESULT"
+        [ -z "$selection" ] && return
+    fi
 
-    # Build package list — base always included
     local packages="$BASE_PKGS"
     local tier="base"
 
@@ -214,46 +326,70 @@ do_install() {
         *ionis*) msg="$msg\n\nNext: download datasets via Download Datasets." ;;
     esac
 
-    $MSGCLIENT --backtitle "$BACKTITLE" \
-        --title " Install Complete" \
-        --msgbox "$msg" 14 60
+    if [ "$USE_TUI" -eq 1 ]; then
+        $MSGCLIENT --backtitle "$BACKTITLE" \
+            --title " Install Complete" --msgbox "$msg" 14 60
+    else
+        plain_msgbox "Install Complete" "$msg"
+    fi
 }
 
 do_credentials() {
     if ! has_auth; then
-        $MSGCLIENT --backtitle "$BACKTITLE" \
-            --title " Not Installed" \
-            --msgbox "Auth servers are not installed.\n\nInstall them first via Install Servers." 10 55
+        local msg="Auth servers are not installed.\n\nInstall them first via Install Servers."
+        if [ "$USE_TUI" -eq 1 ]; then
+            $MSGCLIENT --backtitle "$BACKTITLE" \
+                --title " Not Installed" --msgbox "$msg" 10 55
+        else
+            plain_msgbox "Not Installed" "$msg"
+        fi
         return
     fi
 
     local qso_auth="$VENV_DIR/bin/qso-auth"
     if [ ! -f "$qso_auth" ]; then
-        $MSGCLIENT --backtitle "$BACKTITLE" \
-            --title " Error" \
-            --msgbox "qso-auth CLI not found." 8 40
+        if [ "$USE_TUI" -eq 1 ]; then
+            $MSGCLIENT --backtitle "$BACKTITLE" \
+                --title " Error" --msgbox "qso-auth CLI not found." 8 40
+        else
+            plain_msgbox "Error" "qso-auth CLI not found."
+        fi
         return
     fi
 
     while true; do
-        exec 3>&1
-        selection=$($MSGCLIENT \
-            --backtitle "$BACKTITLE" \
-            --title " Manage Credentials" \
-            --menu "Set up credentials for logbook services." \
-            16 55 7 \
-            "persona" "Create / manage persona" \
-            "eqsl"    "Set eQSL.cc credentials" \
-            "qrz"     "Set QRZ.com credentials" \
-            "lotw"    "Set LoTW credentials" \
-            "hamqth"  "Set HamQTH credentials" \
-            "doctor"  "Verify all credentials" \
-            "back"    "Back to main menu" \
-            2>&1 1>&3)
-        exit_status=$?
-        exec 3>&-
+        local selection=""
+        if [ "$USE_TUI" -eq 1 ]; then
+            exec 3>&1
+            selection=$($MSGCLIENT \
+                --backtitle "$BACKTITLE" \
+                --title " Manage Credentials" \
+                --menu "Set up credentials for logbook services." \
+                16 55 7 \
+                "persona" "Create / manage persona" \
+                "eqsl"    "Set eQSL.cc credentials" \
+                "qrz"     "Set QRZ.com credentials" \
+                "lotw"    "Set LoTW credentials" \
+                "hamqth"  "Set HamQTH credentials" \
+                "doctor"  "Verify all credentials" \
+                "back"    "Back to main menu" \
+                2>&1 1>&3)
+            exit_status=$?
+            exec 3>&-
+            [ "$exit_status" -ne "$DIALOG_OK" ] && return
+        else
+            plain_menu "Manage Credentials" \
+                "persona" "Create / manage persona" \
+                "eqsl"    "Set eQSL.cc credentials" \
+                "qrz"     "Set QRZ.com credentials" \
+                "lotw"    "Set LoTW credentials" \
+                "hamqth"  "Set HamQTH credentials" \
+                "doctor"  "Verify all credentials" \
+                "back"    "Back to main menu"
+            selection="$PLAIN_RESULT"
+        fi
 
-        [ "$exit_status" -ne "$DIALOG_OK" ] && return
+        [ -z "$selection" ] && return
         [ "$selection" = "back" ] && return
 
         clear
@@ -276,40 +412,62 @@ do_credentials() {
 
 do_datasets() {
     if ! has_ionis; then
-        $MSGCLIENT --backtitle "$BACKTITLE" \
-            --title " Not Installed" \
-            --msgbox "ionis-mcp is not installed.\n\nInstall it first via Install Servers." 10 55
+        local msg="ionis-mcp is not installed.\n\nInstall it first via Install Servers."
+        if [ "$USE_TUI" -eq 1 ]; then
+            $MSGCLIENT --backtitle "$BACKTITLE" \
+                --title " Not Installed" --msgbox "$msg" 10 55
+        else
+            plain_msgbox "Not Installed" "$msg"
+        fi
         return
     fi
 
     local ionis_dl="$VENV_DIR/bin/ionis-download"
     if [ ! -f "$ionis_dl" ]; then
-        $MSGCLIENT --backtitle "$BACKTITLE" \
-            --title " Error" \
-            --msgbox "ionis-download CLI not found." 8 40
+        if [ "$USE_TUI" -eq 1 ]; then
+            $MSGCLIENT --backtitle "$BACKTITLE" \
+                --title " Error" --msgbox "ionis-download CLI not found." 8 40
+        else
+            plain_msgbox "Error" "ionis-download CLI not found."
+        fi
         return
     fi
 
-    exec 3>&1
-    selection=$($MSGCLIENT \
-        --backtitle "$BACKTITLE" \
-        --title " Download Datasets" \
-        --radiolist "Select a dataset bundle for ionis-mcp.\nMinimal is required." \
-        14 65 3 \
-        "minimal"     "Contest + grids + solar (~430 MB)"             "ON" \
-        "recommended" "Minimal + PSKR + DSCOVR + balloons (~1.1 GB)" "OFF" \
-        "full"        "All 9 datasets (~15 GB)"                       "OFF" \
-        2>&1 1>&3)
-    exit_status=$?
-    exec 3>&-
-
-    [ "$exit_status" -ne "$DIALOG_OK" ] && return
+    local selection=""
+    if [ "$USE_TUI" -eq 1 ]; then
+        exec 3>&1
+        selection=$($MSGCLIENT \
+            --backtitle "$BACKTITLE" \
+            --title " Download Datasets" \
+            --radiolist "Select a dataset bundle for ionis-mcp." \
+            14 65 3 \
+            "minimal"     "Contest + grids + solar (~430 MB)"             "ON" \
+            "recommended" "Minimal + PSKR + DSCOVR + balloons (~1.1 GB)" "OFF" \
+            "full"        "All 9 datasets (~15 GB)"                       "OFF" \
+            2>&1 1>&3)
+        exit_status=$?
+        exec 3>&-
+        [ "$exit_status" -ne "$DIALOG_OK" ] && return
+    else
+        plain_menu "Download Datasets" \
+            "minimal"     "Contest + grids + solar (~430 MB)" \
+            "recommended" "Minimal + PSKR + DSCOVR + balloons (~1.1 GB)" \
+            "full"        "All 9 datasets (~15 GB)"
+        selection="$PLAIN_RESULT"
+        [ -z "$selection" ] && return
+    fi
 
     if [ "$selection" = "full" ]; then
-        $MSGCLIENT --backtitle "$BACKTITLE" \
-            --title " Confirm Download" \
-            --yesno "The full dataset is approximately 15 GB.\n\nThis may take a while. Continue?" 8 55
-        [ $? -ne "$DIALOG_OK" ] && return
+        local confirmed=1
+        if [ "$USE_TUI" -eq 1 ]; then
+            $MSGCLIENT --backtitle "$BACKTITLE" \
+                --title " Confirm Download" \
+                --yesno "The full dataset is approximately 15 GB.\n\nContinue?" 8 55
+            [ $? -ne "$DIALOG_OK" ] && confirmed=0
+        else
+            plain_yesno "Confirm Download" "The full dataset is approximately 15 GB. Continue?" || confirmed=0
+        fi
+        [ "$confirmed" -eq 0 ] && return
     fi
 
     clear
@@ -335,34 +493,51 @@ do_status() {
     lines="${lines}\nTier: $(current_tier)"
     lines="${lines}\nHome: $QSO_GRAPH_HOME"
 
-    $MSGCLIENT --backtitle "$BACKTITLE" \
-        --title " Server Status" \
-        --msgbox "$lines" $((count + 10)) 55
+    if [ "$USE_TUI" -eq 1 ]; then
+        $MSGCLIENT --backtitle "$BACKTITLE" \
+            --title " Server Status" --msgbox "$lines" $((count + 10)) 55
+    else
+        plain_msgbox "Server Status" "$lines"
+    fi
 }
 
 do_configure() {
-    exec 3>&1
-    selection=$($MSGCLIENT \
-        --backtitle "$BACKTITLE" \
-        --title " Configure MCP Client" \
-        --menu "Select your MCP client to see the config snippet." \
-        18 55 9 \
-        "1" "Claude Desktop" \
-        "2" "Claude Code" \
-        "3" "VS Code (Copilot)" \
-        "4" "Cursor" \
-        "5" "Windsurf" \
-        "6" "ChatGPT Desktop" \
-        "7" "Gemini CLI" \
-        "8" "Goose" \
-        "9" "Codex CLI" \
-        2>&1 1>&3)
-    exit_status=$?
-    exec 3>&-
+    local selection=""
+    if [ "$USE_TUI" -eq 1 ]; then
+        exec 3>&1
+        selection=$($MSGCLIENT \
+            --backtitle "$BACKTITLE" \
+            --title " Configure MCP Client" \
+            --menu "Select your MCP client to see the config snippet." \
+            18 55 9 \
+            "1" "Claude Desktop" \
+            "2" "Claude Code" \
+            "3" "VS Code (Copilot)" \
+            "4" "Cursor" \
+            "5" "Windsurf" \
+            "6" "ChatGPT Desktop" \
+            "7" "Gemini CLI" \
+            "8" "Goose" \
+            "9" "Codex CLI" \
+            2>&1 1>&3)
+        exit_status=$?
+        exec 3>&-
+        [ "$exit_status" -ne "$DIALOG_OK" ] && return
+    else
+        plain_menu "Configure MCP Client" \
+            "1" "Claude Desktop" \
+            "2" "Claude Code" \
+            "3" "VS Code (Copilot)" \
+            "4" "Cursor" \
+            "5" "Windsurf" \
+            "6" "ChatGPT Desktop" \
+            "7" "Gemini CLI" \
+            "8" "Goose" \
+            "9" "Codex CLI"
+        selection="$PLAIN_RESULT"
+        [ -z "$selection" ] && return
+    fi
 
-    [ "$exit_status" -ne "$DIALOG_OK" ] && return
-
-    # Build server config JSON
     local servers=""
     local sep=""
     for pkg in $BASE_PKGS $AUTH_PKGS; do
@@ -380,9 +555,12 @@ do_configure() {
 
     local config="{\n  \"mcpServers\": {\n${servers}\n  }\n}"
 
-    $MSGCLIENT --backtitle "$BACKTITLE" \
-        --title " MCP Client Config" \
-        --msgbox "$config" 20 70
+    if [ "$USE_TUI" -eq 1 ]; then
+        $MSGCLIENT --backtitle "$BACKTITLE" \
+            --title " MCP Client Config" --msgbox "$config" 20 70
+    else
+        plain_msgbox "MCP Client Config" "$config"
+    fi
 }
 
 do_upgrade() {
@@ -406,16 +584,27 @@ do_upgrade() {
     create_wrappers >/dev/null
     update_state "$tier"
 
-    $MSGCLIENT --backtitle "$BACKTITLE" \
-        --title " Update Complete" \
-        --msgbox "All $tier tier packages updated to latest versions." 8 55
+    if [ "$USE_TUI" -eq 1 ]; then
+        $MSGCLIENT --backtitle "$BACKTITLE" \
+            --title " Update Complete" \
+            --msgbox "All $tier tier packages updated to latest versions." 8 55
+    else
+        plain_msgbox "Update Complete" "All $tier tier packages updated to latest versions."
+    fi
 }
 
 do_uninstall() {
-    $MSGCLIENT --backtitle "$BACKTITLE" \
-        --title " Confirm Uninstall" \
-        --yesno "This will remove ~/.qso-graph/ entirely,\nincluding the venv, all servers, and wrappers.\n\nContinue?" 10 55
-    [ $? -ne "$DIALOG_OK" ] && return
+    local confirmed=1
+    if [ "$USE_TUI" -eq 1 ]; then
+        $MSGCLIENT --backtitle "$BACKTITLE" \
+            --title " Confirm Uninstall" \
+            --yesno "This will remove ~/.qso-graph/ entirely,\nincluding the venv, all servers, and wrappers.\n\nContinue?" 10 55
+        [ $? -ne "$DIALOG_OK" ] && confirmed=0
+    else
+        plain_yesno "Confirm Uninstall" \
+            "This will remove ~/.qso-graph/ entirely, including the venv, all servers, and wrappers. Continue?" || confirmed=0
+    fi
+    [ "$confirmed" -eq 0 ] && return
 
     clear
     echo ""
@@ -440,9 +629,11 @@ main() {
             echo "qso-graph-config $VERSION"
             exit 0 ;;
         --upgrade)
+            USE_TUI=0
             do_upgrade
             exit 0 ;;
         --no-tui)
+            USE_TUI=0
             MSGCLIENT="" ;;
         --help|-h)
             echo "qso-graph-config — Manager for QSO-Graph ham radio MCP servers"
@@ -463,40 +654,43 @@ main() {
         exit 1
     fi
 
-    if [ -z "$MSGCLIENT" ]; then
-        echo "Neither dialog nor whiptail found."
-        echo "Install one of them:"
-        echo "  sudo dnf install dialog       (Fedora / RHEL / Rocky)"
-        echo "  sudo apt install dialog       (Ubuntu / Debian)"
-        exit 1
-    fi
-
     # Main menu loop
     while true; do
-        exec 3>&1
-        selection=$($MSGCLIENT \
-            --backtitle "$BACKTITLE" \
-            --title " QSO-Graph Config" \
-            --cancel-label "Exit" \
-            --menu "Ham radio MCP servers for AI agents." \
-            18 55 7 \
-            "install"   "Install / Update Servers" \
-            "creds"     "Manage Credentials" \
-            "data"      "Download Datasets" \
-            "status"    "Server Status" \
-            "config"    "Configure MCP Client" \
-            "update"    "Check for Updates" \
-            "uninstall" "Uninstall" \
-            2>&1 1>&3)
-        exit_status=$?
-        exec 3>&-
+        local selection=""
+        if [ "$USE_TUI" -eq 1 ]; then
+            exec 3>&1
+            selection=$($MSGCLIENT \
+                --backtitle "$BACKTITLE" \
+                --title " QSO-Graph Config" \
+                --cancel-label "Exit" \
+                --menu "Ham radio MCP servers for AI agents." \
+                18 55 7 \
+                "install"   "Install / Update Servers" \
+                "creds"     "Manage Credentials" \
+                "data"      "Download Datasets" \
+                "status"    "Server Status" \
+                "config"    "Configure MCP Client" \
+                "update"    "Check for Updates" \
+                "uninstall" "Uninstall" \
+                2>&1 1>&3)
+            exit_status=$?
+            exec 3>&-
 
-        case $exit_status in
-            $DIALOG_CANCEL)
-                clean_exit ;;
-            $DIALOG_ESC)
-                clean_exit ;;
-        esac
+            case $exit_status in
+                $DIALOG_CANCEL|$DIALOG_ESC) clean_exit ;;
+            esac
+        else
+            plain_menu "QSO-Graph Config v${VERSION}" \
+                "install"   "Install / Update Servers" \
+                "creds"     "Manage Credentials" \
+                "data"      "Download Datasets" \
+                "status"    "Server Status" \
+                "config"    "Configure MCP Client" \
+                "update"    "Check for Updates" \
+                "uninstall" "Uninstall"
+            [ $? -ne 0 ] && clean_exit
+            selection="$PLAIN_RESULT"
+        fi
 
         case "$selection" in
             install)   do_install ;;
