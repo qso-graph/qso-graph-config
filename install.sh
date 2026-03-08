@@ -134,7 +134,20 @@ main() {
         exit 0
     fi
 
-    # Step 1: Find Python
+    # Step 1a: Check for dialog
+    if ! command -v dialog >/dev/null 2>&1; then
+        error "dialog is required but not installed."
+        echo ""
+        echo "Install it first:"
+        echo "  sudo dnf install dialog       (Fedora / RHEL / Rocky)"
+        echo "  sudo apt install dialog       (Ubuntu / Debian)"
+        echo "  brew install dialog           (macOS with Homebrew)"
+        echo ""
+        exit 1
+    fi
+    info "Found dialog at $(command -v dialog)"
+
+    # Step 1b: Find Python
     info "Looking for Python ${MIN_PYTHON_MAJOR}.${MIN_PYTHON_MINOR}+..."
 
     PYTHON=$(find_python) || {
