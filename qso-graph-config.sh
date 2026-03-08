@@ -236,13 +236,14 @@ do_credentials() {
         dialog --backtitle "$BACKTITLE" \
             --title " Manage Credentials" \
             --menu "Set up credentials for logbook services." \
-            16 55 7 \
-            "persona" "Create / manage persona" \
-            "eqsl"    "Set eQSL.cc credentials" \
-            "qrz"     "Set QRZ.com credentials" \
-            "lotw"    "Set LoTW credentials" \
-            "hamqth"  "Set HamQTH credentials" \
-            "doctor"  "Verify all credentials" \
+            18 55 8 \
+            "persona"     "Create / manage persona" \
+            "eqsl"        "Set eQSL.cc credentials" \
+            "qrz"         "Set QRZ.com credentials" \
+            "qrz_logbook" "Set QRZ Logbook API key" \
+            "lotw"        "Set LoTW credentials" \
+            "hamqth"      "Set HamQTH credentials" \
+            "doctor"      "Verify all credentials" \
             "back"    "Back to main menu" \
             2> "$TMP/selection"
         rc=$?
@@ -315,7 +316,7 @@ do_credentials() {
                 "$qso_auth" creds doctor
                 read -rp "Press Enter to continue..."
                 ;;
-            eqsl|lotw|hamqth|qrz)
+            eqsl|lotw|hamqth|qrz|qrz_logbook)
                 # Pick persona first
                 local persona_list
                 persona_list=$("$qso_auth" persona list --short 2>/dev/null \
@@ -362,11 +363,11 @@ do_credentials() {
                 cred_user=$(cat "$TMP/selection")
                 [ -z "$cred_user" ] && continue
 
-                if [ "$selection" = "qrz" ]; then
-                    # QRZ uses API key
+                if [ "$selection" = "qrz_logbook" ]; then
+                    # QRZ Logbook uses API key
                     dialog --backtitle "$BACKTITLE" \
-                        --title " QRZ — API Key" \
-                        --insecure --passwordbox "Enter your QRZ.com API key for ${persona}:" 8 55 \
+                        --title " QRZ Logbook — API Key" \
+                        --insecure --passwordbox "Enter your QRZ Logbook API key for ${persona}:" 8 55 \
                         2> "$TMP/selection"
                     rc=$?
                     [ $rc -ne 0 ] && continue
@@ -375,10 +376,10 @@ do_credentials() {
                     [ -z "$cred_key" ] && continue
 
                     clear
-                    "$qso_auth" creds set "$persona" qrz \
+                    "$qso_auth" creds set "$persona" qrz_logbook \
                         --username "$cred_user" --api-key "$cred_key"
                 else
-                    # eQSL, LoTW, HamQTH use password
+                    # eQSL, QRZ, LoTW, HamQTH use password
                     dialog --backtitle "$BACKTITLE" \
                         --title " ${selection^^} — Password" \
                         --insecure --passwordbox "Enter your ${selection} password for ${persona}:" 8 55 \
