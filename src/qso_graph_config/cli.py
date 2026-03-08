@@ -328,7 +328,7 @@ def _pip_install(packages: list[str]):
     """Install packages into the ~/.qso-graph/venv."""
     pip = os.path.join(_venv_bin_dir(), "pip")
     subprocess.run(
-        [pip, "install", "--quiet", "--upgrade"] + packages,
+        [pip, "install", "--upgrade"] + packages,
         check=True,
     )
 
@@ -708,13 +708,6 @@ def main():
             tui = TUI()
         except RuntimeError:
             tui = PlainTUI()
-
-    # First-run detection: if only base is installed and no auth/ionis,
-    # go straight to the install checklist
-    if not _has_auth() and not _has_ionis():
-        first_run = len(_installed_servers()) <= len(BASE_PACKAGES)
-        if first_run:
-            do_install(tui)
 
     # Main menu loop
     while True:
