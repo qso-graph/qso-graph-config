@@ -171,7 +171,7 @@ main() {
     mkdir -p "$BIN_DIR" "$ETC_DIR" "$LOG_DIR"
 
     # Step 3: Check venv module is available (Debian/Ubuntu strip it out)
-    if ! "$PYTHON" -m venv --help >/dev/null 2>&1; then
+    if ! "$PYTHON" -c "import ensurepip" >/dev/null 2>&1; then
         local py_minor
         py_minor=$("$PYTHON" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
         error "Python venv module is not installed."
