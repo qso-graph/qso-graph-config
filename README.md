@@ -22,7 +22,7 @@ datasets, and MCP client configuration.
 No accounts, no credentials, no downloads. Just works.
 
 | Server | Tools | What It Does |
-|--------|:-----:|--------------:|
+|--------|:-----:|--------------|
 | [adif-mcp](https://pypi.org/project/adif-mcp/) | 8 | ADIF 3.1.6 spec — validation, parsing, geospatial |
 | [solar-mcp](https://pypi.org/project/solar-mcp/) | 6 | Space weather — SFI, Kp, solar wind, band outlook |
 | [pota-mcp](https://pypi.org/project/pota-mcp/) | 6 | Parks on the Air — spots, park info, schedules |
@@ -36,7 +36,7 @@ Logbook services requiring free or paid accounts. Credentials stored in
 your OS keyring via `qso-auth` CLI.
 
 | Server | Tools | What It Does |
-|--------|:-----:|--------------:|
+|--------|:-----:|--------------|
 | [qso-graph-auth](https://pypi.org/project/qso-graph-auth/) | — | OS keyring credential manager |
 | [qrz-mcp](https://pypi.org/project/qrz-mcp/) | 5 | QRZ.com — callsign lookup, DXCC, logbook |
 | [eqsl-mcp](https://pypi.org/project/eqsl-mcp/) | 5 | eQSL.cc — inbox, verification, AG status |
@@ -49,7 +49,7 @@ HF propagation analytics from 175M+ signatures. Requires a dataset
 download (~430 MB minimal, ~15 GB full).
 
 | Server | Tools | What It Does |
-|--------|:-----:|--------------:|
+|--------|:-----:|--------------|
 | [ionis-mcp](https://pypi.org/project/ionis-mcp/) | 11 | Band openings, path analysis, solar correlation |
 
 ## How It Works
@@ -57,7 +57,7 @@ download (~430 MB minimal, ~15 GB full).
 QSO-Graph Config follows the [Conda](https://docs.conda.io/) model:
 
 1. **`install.sh`** bootstraps `~/.qso-graph/` with a Python venv
-2. **`qso-graph-config`** (Python) handles all logic — TUI menus, installs,
+2. **`qso-graph-config`** (bash + dialog) handles all logic — TUI menus, installs,
    upgrades, credential setup, dataset downloads, MCP client config generation
 3. Wrapper scripts in `~/.qso-graph/bin/` make all servers available on PATH
 4. One PATH entry works on both Linux and macOS
@@ -73,8 +73,7 @@ QSO-Graph Config follows the [Conda](https://docs.conda.io/) model:
 ## Usage
 
 ```bash
-qso-graph-config              # Interactive TUI (dialog/whiptail or numbered prompts)
-qso-graph-config --no-tui     # Force plain text prompts
+qso-graph-config              # Interactive TUI (dialog)
 qso-graph-config --upgrade    # Non-interactive upgrade
 qso-graph-config --version    # Show version
 ```
@@ -130,7 +129,7 @@ pip install "qso-graph-config[full]"            # Everything
 ## Requirements
 
 - Python 3.11+ (Linux or macOS)
-- `dialog` or `whiptail` for TUI menus (optional — falls back to numbered prompts)
+- `dialog` for TUI menus (`sudo dnf install dialog` / `sudo apt install dialog`)
 
 ## Windows
 
