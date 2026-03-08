@@ -253,7 +253,47 @@ do_credentials() {
 
         clear
         case "$selection" in
-            persona) "$qso_auth" persona add ;;
+            persona)
+                # Collect persona fields via dialog
+                dialog --backtitle "$BACKTITLE" \
+                    --title " Create Persona" \
+                    --form "Enter persona details:" 14 55 4 \
+                    "Name:"     1 1 "" 1 14 30 30 \
+                    "Callsign:" 2 1 "" 2 14 12 12 \
+                    "Start:"    3 1 "" 3 14 12 10 \
+                    "End:"      4 1 "" 4 14 12 10 \
+                    2> "$TMP/selection"
+                rc=$?
+                [ $rc -ne 0 ] && continue
+
+                local p_name p_call p_start p_end
+                p_name=$(sed -n '1p' "$TMP/selection")
+                p_call=$(sed -n '2p' "$TMP/selection")
+                p_start=$(sed -n '3p' "$TMP/selection")
+                p_end=$(sed -n '4p' "$TMP/selection")
+
+                if [ -z "$p_name" ] || [ -z "$p_call" ] || [ -z "$p_start" ]; then
+                    dialog --backtitle "$BACKTITLE" \
+                        --title " Error" \
+                        --msgbox "Name, Callsign, and Start date are required." 7 50
+                    continue
+                fi
+
+                local cmd="$qso_auth persona add --name $p_name --callsign $p_call --start $p_start"
+                [ -n "$p_end" ] && cmd="$cmd --end $p_end"
+
+                clear
+                $cmd
+                rc=$?
+                if [ $rc -ne 0 ]; then
+                    echo ""
+                    echo "Persona creation failed (exit code $rc)."
+                    echo "If on a server (no desktop), install a headless keyring:"
+                    echo "  ~/.qso-graph/venv/bin/pip install keyrings.alt"
+                    echo ""
+                fi
+                read -rp "Press Enter to continue..."
+                ;;
             doctor)
                 "$qso_auth" creds doctor
                 read -rp "Press Enter to continue..."
