@@ -22,6 +22,55 @@ TMP="$QSO_GRAPH_HOME/tmp"
 
 BACKTITLE="QSO-Graph Config v${VERSION}"
 
+# ─── Dialog theme ────────────────────────────────────────────────────────────
+
+make_dialogrc() {
+    cat > "$TMP/.dialogrc" <<'EOF_DIALOGRC'
+aspect = 0
+separate_widget = ""
+tab_len = 0
+visit_items = ON
+use_shadow = ON
+use_colors = ON
+screen_color = (CYAN,BLUE,ON)
+shadow_color = (BLACK,BLACK,ON)
+dialog_color = (BLACK,WHITE,OFF)
+title_color = (BLUE,WHITE,ON)
+border_color = (WHITE,WHITE,ON)
+button_active_color = (WHITE,BLUE,ON)
+button_inactive_color = (BLACK,WHITE,OFF)
+button_key_active_color = (WHITE,BLUE,ON)
+button_key_inactive_color = (RED,WHITE,OFF)
+button_label_active_color = (YELLOW,BLUE,ON)
+button_label_inactive_color = (BLACK,WHITE,ON)
+inputbox_color = (BLACK,WHITE,OFF)
+inputbox_border_color = (BLACK,WHITE,OFF)
+searchbox_color = (BLACK,WHITE,OFF)
+searchbox_title_color = (BLUE,WHITE,ON)
+searchbox_border_color = (WHITE,WHITE,ON)
+position_indicator_color = (BLUE,WHITE,ON)
+menubox_color = (BLACK,WHITE,OFF)
+menubox_border_color = (WHITE,WHITE,ON)
+item_color = (BLACK,WHITE,OFF)
+item_selected_color = (WHITE,BLUE,ON)
+tag_color = (BLUE,WHITE,ON)
+tag_selected_color = (YELLOW,BLUE,ON)
+tag_key_color = (RED,WHITE,OFF)
+tag_key_selected_color = (RED,BLUE,ON)
+check_color = (BLACK,WHITE,OFF)
+check_selected_color = (WHITE,BLUE,ON)
+uarrow_color = (GREEN,WHITE,ON)
+darrow_color = (GREEN,WHITE,ON)
+itemhelp_color = (WHITE,BLACK,OFF)
+form_active_text_color = (WHITE,BLUE,ON)
+form_text_color = (WHITE,CYAN,ON)
+form_item_readonly_color = (CYAN,WHITE,ON)
+gauge_color = (BLUE,WHITE,ON)
+EOF_DIALOGRC
+
+    export DIALOGRC="$TMP/.dialogrc"
+}
+
 # ─── Package definitions ────────────────────────────────────────────────────
 
 BASE_PKGS="adif-mcp solar-mcp pota-mcp sota-mcp iota-mcp wspr-mcp"
@@ -33,7 +82,7 @@ ENTRY_POINTS="qso-graph-config adif-mcp solar-mcp pota-mcp sota-mcp iota-mcp wsp
 # ─── Terminal cleanup ────────────────────────────────────────────────────────
 
 clean_exit() {
-    rm -f "$TMP"/*
+    rm -f "$TMP"/* "$TMP"/.dialogrc
     stty sane 2>/dev/null || true
     printf '\033[?25h'
     clear
@@ -43,7 +92,7 @@ clean_exit() {
 }
 
 sig_catch_cleanup() {
-    rm -f "$TMP"/*
+    rm -f "$TMP"/* "$TMP"/.dialogrc
     stty sane 2>/dev/null || true
     printf '\033[?25h'
     clear
@@ -401,6 +450,7 @@ main() {
     # Setup
     trap sig_catch_cleanup SIGHUP SIGINT SIGQUIT SIGTERM SIGTSTP
     mkdir -p "$TMP"
+    make_dialogrc
 
     # Non-interactive upgrade
     if [ "${1:-}" = "--upgrade" ]; then
