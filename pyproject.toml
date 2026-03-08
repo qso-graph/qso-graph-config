@@ -1,0 +1,61 @@
+[project]
+name = "qso-graph-config"
+version = "0.1.0"
+description = "QSO-Graph MCP Suite — interactive installer and manager"
+license = {text = "GPL-3.0-or-later"}
+requires-python = ">=3.11"
+authors = [{name = "KI7MT", email = "ki7mt@proton.me"}]
+readme = "README.md"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Communications :: Ham Radio",
+    "Intended Audience :: End Users/Desktop",
+]
+
+# Core + Public servers (default install)
+dependencies = [
+    "adif-mcp>=1.0.0",
+    "solar-mcp>=0.2.0",
+    "pota-mcp>=0.1.1",
+    "sota-mcp>=0.1.4",
+    "iota-mcp>=0.1.0",
+    "wspr-mcp>=0.2.0",
+]
+
+[project.optional-dependencies]
+# Authenticated servers (requires account credentials in OS keyring)
+auth = [
+    "qso-graph-auth>=0.1.0",
+    "qrz-mcp>=0.3.0",
+    "eqsl-mcp>=0.3.0",
+    "lotw-mcp>=0.3.0",
+    "hamqth-mcp>=0.3.0",
+]
+# ionis-mcp (requires dataset download — run ionis-download after install)
+ionis = [
+    "ionis-mcp>=1.2.6",
+]
+# Everything
+full = [
+    "qso-graph-config[auth]",
+    "qso-graph-config[ionis]",
+]
+
+[project.scripts]
+qso-graph-config = "qso_graph_config.cli:main"
+
+[project.urls]
+Homepage = "https://qso-graph.io"
+Documentation = "https://qso-graph.io"
+Repository = "https://github.com/qso-graph"
+Issues = "https://github.com/qso-graph/qso-graph-config/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
