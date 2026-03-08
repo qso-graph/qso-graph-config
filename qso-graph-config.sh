@@ -279,8 +279,25 @@ do_credentials() {
                     continue
                 fi
 
+                # Ask which providers to enable
+                dialog --backtitle "$BACKTITLE" \
+                    --title " Enable Providers" \
+                    --checklist "Select logbook services for this persona:" \
+                    14 55 5 \
+                    "eqsl"        "eQSL.cc"    "ON" \
+                    "qrz"         "QRZ.com"    "ON" \
+                    "qrz_logbook" "QRZ Logbook" "OFF" \
+                    "lotw"        "LoTW"       "ON" \
+                    "hamqth"      "HamQTH"     "ON" \
+                    2> "$TMP/selection"
+                rc=$?
+                [ $rc -ne 0 ] && continue
+                local providers
+                providers=$(cat "$TMP/selection" | tr -d '"')
+
                 local cmd="$qso_auth persona add --name $p_name --callsign $p_call --start $p_start"
                 [ -n "$p_end" ] && cmd="$cmd --end $p_end"
+                [ -n "$providers" ] && cmd="$cmd --providers $providers"
 
                 clear
                 $cmd
