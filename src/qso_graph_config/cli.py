@@ -11,9 +11,11 @@ All state lives under ~/.qso-graph/:
   log/      Install/upgrade logs
 """
 
+import atexit
 import importlib.metadata
 import json
 import os
+import signal
 import shutil
 import subprocess
 import sys
@@ -432,7 +434,7 @@ def do_install(tui):
     if "ionis" in selected:
         packages += [p for p, _ in IONIS_PACKAGES]
 
-    tui.infobox("Installing", f"Installing {len(packages)} packages from PyPI...")
+    print(f"\nInstalling {len(packages)} packages from PyPI...\n")
 
     try:
         _pip_install(packages)
@@ -648,7 +650,7 @@ def do_upgrade(tui):
     if tier in ("ionis", "full"):
         packages += [p for p, _ in IONIS_PACKAGES]
 
-    tui.infobox("Updating", f"Checking PyPI for updates ({tier} tier)...")
+    print(f"\nChecking PyPI for updates ({tier} tier)...\n")
 
     try:
         _pip_install(packages)
@@ -678,6 +680,26 @@ def do_uninstall(tui):
     sys.exit(0)
 
 
+# ─── Terminal cleanup ────────────────────────────────────────────────────────
+
+def _reset_terminal():
+    """Reset terminal to sane state after dialog/whiptail."""
+    try:
+        subprocess.run(["stty", "sane"], stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+    # Clear any dialog artifacts
+    sys.stdout.write("\033[?25h")  # show cursor
+    sys.stdout.flush()
+
+
+def _signal_handler(signum, frame):
+    """Handle signals — clean up terminal and exit."""
+    _reset_terminal()
+    print(f"\nSignal caught, exiting.")
+    sys.exit(128 + signum)
+
+
 # ─── Main ────────────────────────────────────────────────────────────────────
 
 def main():
@@ -693,6 +715,13 @@ def main():
     parser.add_argument("--upgrade", action="store_true",
                         help="Non-interactive upgrade of all installed packages")
     args = parser.parse_args()
+
+    # Signal handling and terminal cleanup (kvasd-installer pattern)
+    signal.signal(signal.SIGHUP, _signal_handler)
+    signal.signal(signal.SIGINT, _signal_handler)
+    signal.signal(signal.SIGQUIT, _signal_handler)
+    signal.signal(signal.SIGTERM, _signal_handler)
+    atexit.register(_reset_terminal)
 
     # Non-interactive upgrade
     if args.upgrade:
@@ -710,35 +739,38 @@ def main():
             tui = PlainTUI()
 
     # Main menu loop
-    while True:
-        choice = tui.menu(
-            f"QSO-Graph Config v{VERSION}",
-            "Ham radio MCP servers for AI agents.",
-            [
-                ("install", "Install / Update Servers"),
-                ("creds", "Manage Credentials"),
-                ("data", "Download Datasets"),
-                ("status", "Server Status"),
-                ("config", "Configure MCP Client"),
-                ("update", "Check for Updates"),
-                ("uninstall", "Uninstall"),
-            ],
-            height=18, width=55, menu_height=7,
-        )
+    try:
+        while True:
+            choice = tui.menu(
+                f"QSO-Graph Config v{VERSION}",
+                "Ham radio MCP servers for AI agents.",
+                [
+                    ("install", "Install / Update Servers"),
+                    ("creds", "Manage Credentials"),
+                    ("data", "Download Datasets"),
+                    ("status", "Server Status"),
+                    ("config", "Configure MCP Client"),
+                    ("update", "Check for Updates"),
+                    ("uninstall", "Uninstall"),
+                ],
+                height=18, width=55, menu_height=7,
+            )
 
-        if choice is None:
-            break
-        elif choice == "install":
-            do_install(tui)
-        elif choice == "creds":
-            do_credentials(tui)
-        elif choice == "data":
-            do_datasets(tui)
-        elif choice == "status":
-            do_status(tui)
-        elif choice == "config":
-            do_configure(tui)
-        elif choice == "update":
-            do_upgrade(tui)
-        elif choice == "uninstall":
-            do_uninstall(tui)
+            if choice is None:
+                break
+            elif choice == "install":
+                do_install(tui)
+            elif choice == "creds":
+                do_credentials(tui)
+            elif choice == "data":
+                do_datasets(tui)
+            elif choice == "status":
+                do_status(tui)
+            elif choice == "config":
+                do_configure(tui)
+            elif choice == "update":
+                do_upgrade(tui)
+            elif choice == "uninstall":
+                do_uninstall(tui)
+    finally:
+        _reset_terminal()
