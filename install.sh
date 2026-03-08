@@ -108,32 +108,11 @@ add_to_path() {
         return
     fi
 
-    echo ""
-    echo -e "${BOLD}Add ~/.qso-graph/bin to PATH?${NC}"
-    echo "This appends one line to $shell_rc"
-    echo ""
-
-    # read from /dev/tty so it works when piped (curl | bash)
-    local answer="y"
-    if [ -t 0 ]; then
-        read -rp "Add to PATH? [Y/n]: " answer < /dev/stdin
-    elif [ -e /dev/tty ]; then
-        read -rp "Add to PATH? [Y/n]: " answer < /dev/tty
-    else
-        info "No terminal detected — adding PATH automatically."
-    fi
-    answer="${answer:-y}"
-
-    if [[ "$answer" =~ ^[Yy] ]]; then
-        echo "" >> "$shell_rc"
-        echo "# QSO-Graph MCP servers" >> "$shell_rc"
-        echo "$path_line" >> "$shell_rc"
-        info "Added to $shell_rc"
-        info "Run 'source $shell_rc' or open a new terminal to activate."
-    else
-        warn "Skipped. Add manually when ready:"
-        echo "  $path_line"
-    fi
+    echo "" >> "$shell_rc"
+    echo "# QSO-Graph MCP servers" >> "$shell_rc"
+    echo "$path_line" >> "$shell_rc"
+    info "Added PATH to $shell_rc"
+    info "Run 'source $shell_rc' or open a new terminal to activate."
 }
 
 # ─── Main ────────────────────────────────────────────────────────────────────
