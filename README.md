@@ -1,7 +1,7 @@
 # QSO-Graph Config
 
 Installer and manager for the [QSO-Graph](https://qso-graph.io) ham radio
-MCP server suite — 12 packages, 71 tools, one command.
+MCP server suite — 14 packages, 80 tools, one command.
 
 ## Quick Start
 
@@ -17,7 +17,7 @@ datasets, and MCP client configuration.
 
 ## What Gets Installed
 
-### Base (default — 6 servers, 38 tools)
+### Base (default — 6 servers, 39 tools)
 
 No accounts, no credentials, no downloads. Just works.
 
@@ -25,7 +25,7 @@ No accounts, no credentials, no downloads. Just works.
 |--------|:-----:|--------------|
 | [adif-mcp](https://pypi.org/project/adif-mcp/) | 8 | ADIF 3.1.6 spec — validation, parsing, geospatial |
 | [solar-mcp](https://pypi.org/project/solar-mcp/) | 6 | Space weather — SFI, Kp, solar wind, band outlook |
-| [pota-mcp](https://pypi.org/project/pota-mcp/) | 6 | Parks on the Air — spots, park info, schedules |
+| [pota-mcp](https://pypi.org/project/pota-mcp/) | 7 | Parks on the Air — spots, park info, nearby, schedules |
 | [sota-mcp](https://pypi.org/project/sota-mcp/) | 4 | Summits on the Air — spots, alerts, summit info |
 | [iota-mcp](https://pypi.org/project/iota-mcp/) | 6 | Islands on the Air — group lookup, nearby search |
 | [wspr-mcp](https://pypi.org/project/wspr-mcp/) | 8 | WSPR analytics — propagation, beacons, SNR trends |
